@@ -1,17 +1,19 @@
-package com.keedio.storm;
+package com.keedio.storm.bolt;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.Date;
 import java.util.Map;
-
-import backtype.storm.metric.api.*;
-import com.keedio.storm.metric.ThroughputReducer;
+import java.util.regex.Pattern;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -20,6 +22,9 @@ import backtype.storm.tuple.Tuple;
 
 public class TCPBolt extends BaseRichBolt {
 
+	private static final Pattern hostnamePattern =
+			    Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9-]*(\\.([a-zA-Z0-9][a-zA-Z0-9-]*))*$");
+	  
 	private static final long serialVersionUID = 8831211985061474513L;
 
 	public static final Logger LOG = LoggerFactory
@@ -30,9 +35,14 @@ public class TCPBolt extends BaseRichBolt {
 	private String host;
 	private int port;
 	private OutputCollector collector;
-    private transient ReducedMetric throughputMetric;
-    private transient CountMetric errorCount;
+    private Date lastExecution = new Date();
+    
+    // Declaramos el adaptador y las metricas de yammer
+    private MetricRegistry metric;
+    private Meter meter;
+    private com.codahale.metrics.Histogram histogram;
 	
+
 	@Override
 	public void cleanup() {
 		try {
@@ -47,10 +57,16 @@ public class TCPBolt extends BaseRichBolt {
 		loadBoltProperties(stormConf);
 		connectToHost();
 		this.collector = collector;
-        this.throughputMetric = new ReducedMetric(new ThroughputReducer());
-        this.errorCount = new CountMetric();
-        context.registerMetric("throughputMetric", throughputMetric, 5);
-        context.registerMetric("errorCountMetric", errorCount, 5);
+        
+		// Tiempo de notificacion de metricas en los diferentes bolts
+        //stormConf.put(YammerFacadeMetric.FACADE_METRIC_TIME_BUCKET_IN_SEC, 10);
+        
+        metric = new MetricRegistry();
+        meter = metric.meter("meter");
+        histogram = metric.histogram("histogram");
+        
+        com.codahale.metrics.JmxReporter reporter = com.codahale.metrics.JmxReporter.forRegistry(metric).inDomain(metricsPath()).build();
+        reporter.start();
 	}
 
 	@Override
@@ -64,15 +80,26 @@ public class TCPBolt extends BaseRichBolt {
 
 	public void execute(Tuple input) {
 		try {
-			output.writeBytes(input.getString(0) + "\n");
+			output.writeBytes(input.getBinary(0) + "\n");
             collector.ack(input);
-            throughputMetric.update(System.currentTimeMillis());
-        } catch (SocketException se){
-            errorCount.incr();
+
+            // Añadimos al throughput e inicializamos el date
+            Date actualDate = new Date();
+            long aux = (actualDate.getTime() - lastExecution.getTime())/1000;
+            lastExecution = actualDate;
+            
+            // Registramos para calculo de throughput
+            histogram.update(aux);
+		} catch (SocketException se){
+            meter.mark();
+            collector.reportError(se);
+            collector.fail(input);
 			LOG.error("Connection with server lost");
 			connectToHost();
 		} catch (IOException e) {
-            errorCount.incr();
+			collector.reportError(e);
+			collector.fail(input);
+            meter.mark();
 			e.printStackTrace();
 		}
 	}
@@ -105,7 +132,7 @@ public class TCPBolt extends BaseRichBolt {
 				LOG.warn("Error establising TCP connection with host: "+host+" port: "+port);
 				try{			
 					Thread.sleep(retryDelay*1000);
-					if (retryDelay < 120)
+					if (retryDelay < 60)
 							retryDelay*=2;
 					continue;
 				}
@@ -118,5 +145,37 @@ public class TCPBolt extends BaseRichBolt {
 			}
 		}
 	}
+	
+	private String metricsPath() {
+	    final String myHostname = extractHostnameFromFQHN(detectHostname());
+	    return myHostname;
+	}
+
+	  private static String detectHostname() {
+		    String hostname = "hostname-could-not-be-detected";
+		    try {
+		      hostname = InetAddress.getLocalHost().getHostName();
+		    }
+		    catch (UnknownHostException e) {
+		      LOG.error("Could not determine hostname");
+		    }
+		    return hostname;
+		  }
+
+		  private static String extractHostnameFromFQHN(String fqhn) {
+		    if (hostnamePattern.matcher(fqhn).matches()) {
+		      if (fqhn.contains(".")) {
+		        return fqhn.split("\\.")[0];
+		      }
+		      else {
+		        return fqhn;
+		      }
+		    }
+		    else {
+		      // We want to return the input as-is
+		      // when it is not a valid hostname/FQHN.
+		      return fqhn;
+		    }
+		  }
 		
 }
