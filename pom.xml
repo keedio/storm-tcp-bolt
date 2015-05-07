@@ -6,13 +6,6 @@
 	<version>1.0.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	
-	<parent>
-			<groupId>org.keedio</groupId>
-			<artifactId>keedio-shaded-parent</artifactId>
-			<version>0.1.0</version>
-	</parent>
-	
-	
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.storm</groupId>
