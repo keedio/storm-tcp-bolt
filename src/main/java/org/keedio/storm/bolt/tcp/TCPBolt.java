@@ -1,4 +1,4 @@
-package com.keedio.storm.bolt;
+package org.keedio.storm.bolt.tcp;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -80,7 +80,7 @@ public class TCPBolt extends BaseRichBolt {
 
 	public void execute(Tuple input) {
 		try {
-			output.writeBytes(input.getBinary(0) + "\n");
+			output.writeBytes(input.getString(0) + "\n");
             collector.ack(input);
 
             // Añadimos al throughput e inicializamos el date
