@@ -7,18 +7,23 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+
 import info.ganglia.gmetric4j.gmetric.GMetric;
+
 import org.keedio.storm.bolt.tcp.metrics.MetricsController;
 import org.keedio.storm.bolt.tcp.metrics.MetricsEvent;
 import org.keedio.storm.bolt.tcp.metrics.SimpleMetric;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -39,6 +44,7 @@ public class TCPBolt extends BaseRichBolt {
     private DataOutputStream output;
     private String host;
     private int port;
+    private int tcpBatch;
     private OutputCollector collector;
     private MetricsController mc;
     private int refreshTime;
@@ -49,6 +55,9 @@ public class TCPBolt extends BaseRichBolt {
     private GMetric.UDPAddressingMode modeGanglia;
     private int portGanglia, ttlGanglia;
     private int minutesGanglia;
+    
+    private String listToSend;
+    private int eventsSent;
 
 
     @Override
@@ -66,11 +75,13 @@ public class TCPBolt extends BaseRichBolt {
         connectToHost();
         this.collector = collector;
 
+        /*
         if (stormConf.get("refreshtime") == null)
             refreshTime = 10;
         else
             refreshTime = Integer.parseInt((String) stormConf.get("refreshtime"));
 
+        
         //check if in topology's config ganglia.report is set to "yes"
         if (loadGangliaProperties(stormConf)) {
             mc = new MetricsController(hostGanglia, portGanglia, modeGanglia, ttlGanglia, minutesGanglia);
@@ -92,6 +103,9 @@ public class TCPBolt extends BaseRichBolt {
         context.registerMetric("error_IO", error_IO, refreshTime);
         context.registerMetric("error_Connection", error_Connection, refreshTime);
         context.registerMetric("histogram", histogram, refreshTime);
+        */
+        listToSend = new String();
+        eventsSent=0;
 
     }
 
@@ -106,21 +120,20 @@ public class TCPBolt extends BaseRichBolt {
 
     public void execute(Tuple input) {
         // Añadimos al throughput e inicializamos el date
+    	/*
         Date actualDate = new Date();
         long aux = (actualDate.getTime() - lastExecution.getTime()) / 1000;
         lastExecution = actualDate;
-
+*/
         // Registramos para calculo de throughput
-        mc.manage(new MetricsEvent(MetricsEvent.UPDATE_THROUGHPUT, aux));
+        //mc.manage(new MetricsEvent(MetricsEvent.UPDATE_THROUGHPUT, aux));
 
         try {
-            output.writeBytes(input.getString(0) + "\n");
+            output.write(input.getBinary(0));
             collector.ack(input);
-            mc.manage(new MetricsEvent(MetricsEvent.INC_METER, "written"));
-
-
+            //mc.manage(new MetricsEvent(MetricsEvent.INC_METER, "written"));
         } catch (SocketException se) {
-            mc.manage(new MetricsEvent(MetricsEvent.INC_METER, "error_Connection"));
+            //mc.manage(new MetricsEvent(MetricsEvent.INC_METER, "error_Connection"));
             collector.reportError(se);
             collector.fail(input);
             LOG.error("Connection with server lost");
@@ -128,7 +141,7 @@ public class TCPBolt extends BaseRichBolt {
         } catch (IOException e) {
             collector.reportError(e);
             collector.fail(input);
-            mc.manage(new MetricsEvent(MetricsEvent.INC_METER, "error_IO"));
+            //mc.manage(new MetricsEvent(MetricsEvent.INC_METER, "error_IO"));
             e.printStackTrace();
         }
     }
@@ -143,6 +156,14 @@ public class TCPBolt extends BaseRichBolt {
             e.printStackTrace();
             throw new NumberFormatException();
         }
+        try {
+            tcpBatch = Integer.parseInt((String) stormConf.get("tcp.bolt.batch"));
+        } catch (NumberFormatException e) {
+            LOG.error("Error parsing tcp bolt from config file");
+            e.printStackTrace();
+            throw new NumberFormatException();
+        }
+        
     }
 
     private void connectToHost() {
