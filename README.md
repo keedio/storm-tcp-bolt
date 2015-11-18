@@ -1,8 +1,7 @@
 #storm-tcp-bolt
 ##Description
 
-This bolt receives a byte array writes the bytes to the configured host and port. It is used in order to inject data to Splunk.
-
+This output bolt receives a byte array and writes it through TCP connection. 
 
 ## Property file configuration
 ```
@@ -15,8 +14,8 @@ tcp.bolt.port=2000
 
 |property|mandatory|description
 |--------|------------|-------------|
-|tcp.bolt.host|true|Splunk host|
-|tcp.bolt.port|true|Splunk port|
+|tcp.bolt.host|true|TCP host to send data|
+|tcp.bolt.port|true|TCP port to send data|
 
 
 ## Compilation
