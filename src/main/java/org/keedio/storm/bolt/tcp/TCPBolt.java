@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -40,10 +41,15 @@ public class TCPBolt extends BaseRichBolt {
     }
 
     @SuppressWarnings("rawtypes")
-    public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        loadBoltProperties(stormConf);
-        connectToHost();
-        this.collector = collector;
+	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+        
+    	try {
+			loadBoltProperties(stormConf);
+			connectToHost();
+			this.collector = collector;
+        } catch (ConfigurationException e) {
+			e.printStackTrace();
+		}
     }
 
     @Override
@@ -52,7 +58,12 @@ public class TCPBolt extends BaseRichBolt {
 
     @Override
     public Map<String, Object> getComponentConfiguration() {
-        return null;
+    	
+    	Map<String,Object> componentConfiguration = new HashMap<String,Object>();
+    	componentConfiguration.put("tcp.bolt.host", host);
+    	componentConfiguration.put("tcp.bolt.port", port);
+    	
+        return componentConfiguration;
     }
 
     public void execute(Tuple input) {
@@ -72,7 +83,14 @@ public class TCPBolt extends BaseRichBolt {
     }
 
     @SuppressWarnings("rawtypes")
-    private void loadBoltProperties(Map stormConf) {
+	private void loadBoltProperties(Map stormConf) throws ConfigurationException {
+    	
+    	if (!stormConf.containsKey("tcp.bolt.host") || !stormConf.containsKey("tcp.bolt.port"))
+    	{
+    		throw new ConfigurationException("\"tcp.bolt.host\" and \"tcp.bolt.port\" properties must be"
+    				+ "set in configuration file ");
+    	}
+    	
         host = (String) stormConf.get("tcp.bolt.host");
         try {
             port = Integer.parseInt((String) stormConf.get("tcp.bolt.port"));
@@ -80,12 +98,12 @@ public class TCPBolt extends BaseRichBolt {
             LOG.error("Error parsing tcp bolt from config file");
             e.printStackTrace();
             throw new NumberFormatException();
-        }        
+        }
     }
 
     private void connectToHost() {
 
-        int retryDelay = 1;
+        int retryDelayMs = 1000;
         boolean connected = false;
 
         while (!connected) {
@@ -97,9 +115,9 @@ public class TCPBolt extends BaseRichBolt {
             } catch (ConnectException e) {
                 LOG.warn("Error establising TCP connection with host: " + host + " port: " + port);
                 try {
-                    Thread.sleep(retryDelay * 1000);
-                    if (retryDelay < 60)
-                        retryDelay *= 2;
+                    Thread.sleep(retryDelayMs);
+                    if (retryDelayMs < 10000)
+                        retryDelayMs *= 1000;
                     continue;
                 } catch (InterruptedException ie) {
                     ie.printStackTrace();
