@@ -155,15 +155,7 @@ public class TCPBolt extends BaseRichBolt {
             LOG.error("Error parsing tcp bolt from config file");
             e.printStackTrace();
             throw new NumberFormatException();
-        }
-        try {
-            tcpBatch = Integer.parseInt((String) stormConf.get("tcp.bolt.batch"));
-        } catch (NumberFormatException e) {
-            LOG.error("Error parsing tcp bolt from config file");
-            e.printStackTrace();
-            throw new NumberFormatException();
-        }
-        
+        }        
     }
 
     private void connectToHost() {
