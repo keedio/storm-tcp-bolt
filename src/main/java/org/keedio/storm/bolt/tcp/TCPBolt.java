@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -34,7 +33,8 @@ public class TCPBolt extends BaseRichBolt {
     @Override
     public void cleanup() {
         try {
-            socket.close();
+        	if (socket != null)
+        		socket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -58,41 +58,39 @@ public class TCPBolt extends BaseRichBolt {
 
     @Override
     public Map<String, Object> getComponentConfiguration() {
-    	
-    	Map<String,Object> componentConfiguration = new HashMap<String,Object>();
-    	componentConfiguration.put("tcp.bolt.host", host);
-    	componentConfiguration.put("tcp.bolt.port", port);
-    	
-        return componentConfiguration;
+    	return null;
     }
 
     public void execute(Tuple input) {
-        try {
-            output.write(input.getBinary(0));
-            collector.ack(input);
-        } catch (SocketException se) {
-            collector.reportError(se);
-            collector.fail(input);
-            LOG.error("Connection with server lost");
-            connectToHost();
-        } catch (IOException e) {
-            collector.reportError(e);
-            collector.fail(input);
-            e.printStackTrace();
-        }
+    	
+    	if (output!= null)
+    	{	
+	        try {
+	            output.write(input.getBinary(0));
+	            collector.ack(input);
+	        } catch (SocketException se) {
+	            collector.reportError(se);
+	            collector.fail(input);
+	            LOG.error("Connection with server lost");
+	            connectToHost();
+	        } catch (IOException e) {
+	            collector.reportError(e);
+	            collector.fail(input);
+	            e.printStackTrace();
+	        }
+    	}
     }
 
     @SuppressWarnings("rawtypes")
 	private void loadBoltProperties(Map stormConf) throws ConfigurationException {
     	
-    	if (!stormConf.containsKey("tcp.bolt.host") || !stormConf.containsKey("tcp.bolt.port"))
-    	{
-    		throw new ConfigurationException("\"tcp.bolt.host\" and \"tcp.bolt.port\" properties must be"
-    				+ "set in configuration file ");
-    	}
-    	
-        host = (String) stormConf.get("tcp.bolt.host");
-        try {
+    	try {
+	    	if (!stormConf.containsKey("tcp.bolt.host") || !stormConf.containsKey("tcp.bolt.port"))
+	    		throw new ConfigurationException("\"tcp.bolt.host\" and \"tcp.bolt.port\" properties must be"
+	    				+ "set in configuration file ");
+	    	
+	        host = (String) stormConf.get("tcp.bolt.host");
+        
             port = Integer.parseInt((String) stormConf.get("tcp.bolt.port"));
         } catch (NumberFormatException e) {
             LOG.error("Error parsing tcp bolt from config file");
