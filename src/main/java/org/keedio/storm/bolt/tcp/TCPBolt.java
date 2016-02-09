@@ -67,6 +67,8 @@ public class TCPBolt extends BaseRichBolt {
     	{	
 	        try {
 	            output.write(input.getBinary(0));
+	            output.write(System.getProperty("line.separator").getBytes());
+	            output.flush();
 	            collector.ack(input);
 	        } catch (SocketException se) {
 	            collector.reportError(se);
@@ -115,7 +117,7 @@ public class TCPBolt extends BaseRichBolt {
                 try {
                     Thread.sleep(retryDelayMs);
                     if (retryDelayMs < 10000)
-                        retryDelayMs *= 1000;
+                        retryDelayMs += 1000;
                     continue;
                 } catch (InterruptedException ie) {
                     ie.printStackTrace();
