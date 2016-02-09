@@ -3,13 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.keedio.storm.bolt.tcp</groupId>
     <artifactId>storm-tcp-bolt</artifactId>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
     <packaging>jar</packaging>
 
     <name>storm-tcp-bolt</name>
     <description>
-        This bolt receives a byte array writes the bytes to the configured host and port. It is used in order to inject
-        data to Splunk.
+	This bolt expects a byte array and sends it over a TCP connection to the configured host and port.
     </description>
 
     <licenses>
