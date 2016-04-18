@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.keedio.storm.bolt.tcp</groupId>
     <artifactId>storm-tcp-bolt</artifactId>
-    <version>1.0.6-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>storm-tcp-bolt</name>
@@ -45,7 +45,7 @@
         <dependency>
             <groupId>org.apache.storm</groupId>
             <artifactId>storm-core</artifactId>
-            <version>0.9.4</version>
+            <version>1.0.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

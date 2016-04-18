@@ -7,14 +7,13 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Map;
 
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.topology.base.BaseRichBolt;
+import org.apache.storm.tuple.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.topology.base.BaseRichBolt;
-import backtype.storm.tuple.Tuple;
 
 public class TCPBolt extends BaseRichBolt {
 
@@ -40,6 +39,7 @@ public class TCPBolt extends BaseRichBolt {
         }
     }
 
+    @Override
     @SuppressWarnings("rawtypes")
 	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         
@@ -61,6 +61,7 @@ public class TCPBolt extends BaseRichBolt {
     	return null;
     }
 
+    @Override
     public void execute(Tuple input) {
     	
     	if (output!= null)
@@ -118,7 +119,6 @@ public class TCPBolt extends BaseRichBolt {
                     Thread.sleep(retryDelayMs);
                     if (retryDelayMs < 10000)
                         retryDelayMs += 1000;
-                    continue;
                 } catch (InterruptedException ie) {
                     ie.printStackTrace();
                 }
